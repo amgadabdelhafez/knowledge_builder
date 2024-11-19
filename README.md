@@ -1,5 +1,7 @@
 # Knowledge Builder
 
+![Python Tests](https://github.com/amgadabdelhafez/knowledge_builder/actions/workflows/python-tests.yml/badge.svg)
+
 A Python-based tool for extracting, analyzing, and organizing educational content from video lectures. This tool processes video lectures to extract slides, transcripts, and technical content, making it easier to study and reference the material.
 
 ## Features
@@ -98,7 +100,7 @@ knowledge_builder/
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/yourusername/knowledge_builder.git
+git clone https://github.com/amgadabdelhafez/knowledge_builder.git
 cd knowledge_builder
 ```
 
