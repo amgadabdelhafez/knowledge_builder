@@ -1,0 +1,26 @@
+# Core dependencies
+numpy>=1.21.0
+opencv-python>=4.5.0
+pytesseract>=0.3.8
+spacy>=3.2.0
+transformers>=4.15.0
+torch>=1.10.0
+yt-dlp>=2023.3.4
+
+# NLP models
+en-core-web-lg @ https://github.com/explosion/spacy-models/releases/download/en_core_web_lg-3.2.0/en_core_web_lg-3.2.0.tar.gz
+
+# Testing
+pytest>=7.0.0
+pytest-cov>=3.0.0
+pytest-mock>=3.6.0
+
+# Development tools
+black>=22.0.0
+flake8>=4.0.0
+mypy>=0.910
+isort>=5.10.0
+
+# Documentation
+sphinx>=4.4.0
+sphinx-rtd-theme>=1.0.0
