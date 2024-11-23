@@ -9,19 +9,26 @@ def main():
     
     # Configure test collection
     test_args = [
-        'test_lecture_processor.py',
+        '.',  # Run all tests in current directory
         '-v',
-        '--cov=lecture_processor',
-        '--cov=content_extractor',
+        '--cov=.',  # Cover all project files
         '--cov-report=term-missing',
-        '--cov-report=html'
+        '--cov-report=html',
     ]
+    
+    # Add timeout markers for different test types
+    test_args.extend([
+        '--timeout=60',  # Default timeout
+        '--timeout-method=thread',  # Use thread timeout method for better handling
+        '-m', 'not integration or timeout_long',  # Skip integration tests and long timeout tests
+    ])
     
     # Add markers for integration tests
     if '--integration' in sys.argv:
         print("Running integration tests...")
     else:
-        test_args.append('-m', 'not integration')
+        test_args.append('-m')
+        test_args.append('not integration')
         print("Skipping integration tests. Use --integration to run them.")
     
     # Run tests

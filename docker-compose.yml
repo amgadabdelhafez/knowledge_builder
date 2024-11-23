@@ -1,0 +1,15 @@
+version: '3.8'
+
+services:
+  knowledge-builder:
+    build: .
+    volumes:
+      - .:/app
+      - knowledge_data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: python main.py
+
+volumes:
+  knowledge_data:
+    driver: local

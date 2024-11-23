@@ -1,6 +1,21 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from typing import Dict, List, Any
 from urllib.parse import parse_qs, urlparse
+
+@dataclass
+class Chapter:
+    """Video chapter information"""
+    title: str
+    start_time: float
+    end_time: float
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert chapter to dictionary for JSON serialization"""
+        return {
+            'title': self.title,
+            'start_time': self.start_time,
+            'end_time': self.end_time
+        }
 
 @dataclass
 class VideoMetadata:
@@ -19,6 +34,14 @@ class VideoMetadata:
     tags: List[str]
     captions: List[Dict[str, Any]]
     thumbnail_url: str
+    chapters: List[Chapter]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert metadata to dictionary for JSON serialization"""
+        data = asdict(self)
+        # Convert chapters to dictionaries
+        data['chapters'] = [chapter.to_dict() for chapter in self.chapters]
+        return data
 
 @dataclass
 class ProcessingResult:
@@ -28,6 +51,16 @@ class ProcessingResult:
     content_analysis: List[Dict[str, Any]]
     transcript: List[Dict[str, Any]]
     summary: Dict[str, Any]
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert result to dictionary for JSON serialization"""
+        return {
+            'metadata': self.metadata.to_dict(),
+            'slides': self.slides,
+            'content_analysis': self.content_analysis,
+            'transcript': self.transcript,
+            'summary': self.summary
+        }
 
 def clean_youtube_url(url: str) -> str:
     """Clean YouTube URL by removing tracking parameters"""

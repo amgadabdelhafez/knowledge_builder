@@ -47,7 +47,13 @@ test_output/
 *.jpg
 *.png
 *.log
+processed_lecture_*/
 
 # OS specific
 .DS_Store
 Thumbs.db
+.cache/
+cruise_merged_content.md
+article_extractor.py
+links.txt
+cruise*
