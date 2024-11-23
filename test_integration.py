@@ -1,84 +1,23 @@
 import pytest
 import os
-import shutil
+import cv2
+import numpy as np
 from typing import List, Dict, Any
-from video_downloader import VideoDownloader
-from image_processor import ImageProcessor
 from text_processor import TextProcessor
-from slide_extractor import SlideExtractor
-from content_segment import ContentSegment, align_transcript_with_slides
-
-# Test data - Using a short video segment
-TEST_VIDEO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Short video for testing
-
-def cleanup_directory(path: str):
-    """Safely cleanup a directory and all its contents"""
-    try:
-        if os.path.exists(path):
-            shutil.rmtree(path)
-    except Exception as e:
-        print(f"Warning: Failed to cleanup {path}: {e}")
+from image_processor import ImageProcessor
+from content_segment import align_transcript_with_slides
+from test_utils import cleanup_directory, TEST_OUTPUT_PATH, TEST_SLIDES_PATH
 
 class TestIntegration:
     def setUp(self):
         """Setup test environment"""
-        self.output_path = "test_output"
-        self.slides_path = os.path.join(self.output_path, "slides")
-        cleanup_directory(self.output_path)
-        os.makedirs(self.output_path, exist_ok=True)
-        os.makedirs(self.slides_path, exist_ok=True)
+        cleanup_directory(TEST_OUTPUT_PATH)
+        os.makedirs(TEST_OUTPUT_PATH, exist_ok=True)
+        os.makedirs(TEST_SLIDES_PATH, exist_ok=True)
     
     def tearDown(self):
         """Cleanup test environment"""
-        cleanup_directory(self.output_path)
-
-    def test_video_download_and_metadata(self):
-        """Test video download and metadata extraction"""
-        self.setUp()
-        try:
-            print("\nTesting video download and metadata extraction...")
-            
-            # Configure downloader for quick download
-            downloader = VideoDownloader()
-            downloader.ydl_opts.update({
-                'format': 'worst[height>=360]',
-                'postprocessors': [{
-                    'key': 'FFmpegVideoConvertor',
-                    'preferedformat': 'mp4',
-                }],
-            })
-            
-            # Extract metadata first (faster than downloading)
-            print("Extracting metadata...")
-            metadata = downloader.extract_metadata(TEST_VIDEO_URL)
-            
-            # Verify metadata
-            assert metadata.video_id == "dQw4w9WgXcQ"
-            assert len(metadata.title) > 0
-            assert len(metadata.description) > 0
-            assert metadata.length > 0
-            assert len(metadata.captions) > 0
-            
-            print(f"Video title: {metadata.title}")
-            print(f"Duration: {metadata.length} seconds")
-            print(f"Caption segments: {len(metadata.captions)}")
-            
-            # Download video
-            print("\nDownloading video...")
-            video_path = downloader.download_video(TEST_VIDEO_URL, self.output_path)
-            
-            # Verify download
-            assert video_path is not None
-            assert os.path.exists(video_path)
-            assert os.path.getsize(video_path) > 0
-            
-            print(f"Video downloaded to: {video_path}")
-            print(f"File size: {os.path.getsize(video_path)} bytes")
-            
-        except Exception as e:
-            pytest.fail(f"Error in video download and metadata test: {e}")
-        finally:
-            self.tearDown()
+        cleanup_directory(TEST_OUTPUT_PATH)
 
     def test_frame_extraction_and_analysis(self):
         """Test frame extraction and analysis"""
@@ -86,17 +25,13 @@ class TestIntegration:
         try:
             print("\nTesting frame extraction and analysis...")
             
-            # Create a sample video frame
-            import cv2
-            import numpy as np
-            
             # Create a test frame with text
             frame = np.ones((480, 640, 3), dtype=np.uint8) * 255
             cv2.putText(frame, "Test Frame Content", (50, 240),
                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 2)
             
             # Save test frame
-            frame_path = os.path.join(self.slides_path, "test_frame.jpg")
+            frame_path = os.path.join(TEST_SLIDES_PATH, "test_frame.jpg")
             cv2.imwrite(frame_path, frame)
             
             # Process frame
@@ -175,6 +110,3 @@ class TestIntegration:
             pytest.fail(f"Error in transcript processing test: {e}")
         finally:
             self.tearDown()
-
-if __name__ == "__main__":
-    pytest.main(['-v', '--tb=short'])

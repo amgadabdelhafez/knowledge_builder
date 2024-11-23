@@ -12,10 +12,12 @@ from results_processor import ResultsProcessor
 from lecture_processor import LectureProcessor
 from text_processor import TextProcessor
 from image_processor import ImageProcessor
-
-# Test data - Using shorter videos for testing
-TEST_VIDEO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"  # Short video for testing
-TEST_PLAYLIST_URL = "https://www.youtube.com/playlist?list=PLgQxZdQXdhkZlLQVU2laGeCwI63CRvONn"
+from test_utils import (
+    cleanup_directory,
+    TEST_VIDEO_URL,
+    TEST_PLAYLIST_URL,
+    TEST_OUTPUT_PATH
+)
 
 class TestVideoDownloader:
     def test_extract_metadata(self):
@@ -103,8 +105,7 @@ class TestResultsProcessor:
         assert os.path.exists(os.path.join(folder, 'transcripts'))
         
         # Cleanup
-        import shutil
-        shutil.rmtree(folder)
+        cleanup_directory(folder)
 
 class TestLectureProcessor:
     @pytest.mark.timeout(300)  # 5 minutes timeout
@@ -143,8 +144,7 @@ class TestLectureProcessor:
             # Cleanup
             base_folder = f"lecture_{result.metadata.video_id}"
             if os.path.exists(base_folder):
-                import shutil
-                shutil.rmtree(base_folder)
+                cleanup_directory(base_folder)
             
         except Exception as e:
             if "OCR timeout" in str(e):
@@ -189,14 +189,10 @@ class TestLectureProcessor:
             # Cleanup
             base_folder = f"lecture_{result.metadata.video_id}"
             if os.path.exists(base_folder):
-                import shutil
-                shutil.rmtree(base_folder)
+                cleanup_directory(base_folder)
             
         except Exception as e:
             if "OCR timeout" in str(e):
                 print("Warning: OCR timeout occurred, test considered successful")
             else:
                 pytest.fail(f"Error processing playlist video: {e}")
-
-if __name__ == "__main__":
-    pytest.main(['-v', '--tb=short'])

@@ -1,138 +1,159 @@
+from typing import List, Dict, Any
+from knowledge_base import KnowledgeBase
+from text_cleaner import TextCleaner
+from keyword_extractor import KeywordExtractor
+from technical_analyzer import TechnicalAnalyzer
 import spacy
-import re
-from transformers import pipeline
-from typing import List, Set
 
 class TextProcessor:
-    def __init__(self):
-        # Initialize NLP components
-        self.nlp = spacy.load("en_core_web_lg")
+    def __init__(self, knowledge_base_path: str = 'knowledge_base.json'):
+        # Initialize components
+        self.knowledge_base = KnowledgeBase(knowledge_base_path)
+        self.text_cleaner = TextCleaner()
+        self.keyword_extractor = KeywordExtractor(self.knowledge_base, self.text_cleaner)
+        self.technical_analyzer = TechnicalAnalyzer(self.knowledge_base, self.text_cleaner)
         
-        # Initialize zero-shot classifier for technical content
-        self.classifier = pipeline(
-            "zero-shot-classification",
-            model="facebook/bart-large-mnli"
-        )
-        
-        # Domain-specific keywords
-        self.domain_keywords = {
-            'programming': {
-                'def', 'class', 'function', 'return', 'import', 'variable',
-                'method', 'parameter', 'argument', 'loop', 'condition',
-                'exception', 'module', 'package', 'library'
-            },
-            'machine_learning': {
-                'neural', 'network', 'layer', 'training', 'model', 'activation',
-                'neuron', 'weights', 'bias', 'gradient', 'epoch', 'batch',
-                'learning rate', 'relu', 'softmax', 'classification'
-            },
-            'database_systems': {
-                'database', 'schema', 'table', 'query', 'index', 'primary key',
-                'foreign key', 'join', 'select', 'insert', 'update', 'delete',
-                'transaction', 'constraint', 'column', 'row'
-            },
-            'networking': {
-                'protocol', 'tcp', 'ip', 'http', 'router', 'packet',
-                'network', 'bandwidth', 'latency', 'dns', 'server',
-                'client', 'socket', 'port', 'firewall'
-            }
-        }
+        # Initialize spaCy model
+        try:
+            self.nlp = spacy.load("en_core_web_lg")
+        except OSError:
+            # If model not found, download and load it
+            spacy.cli.download("en_core_web_lg")
+            self.nlp = spacy.load("en_core_web_lg")
 
-    def extract_keywords(self, text: str) -> List[str]:
-        """Extract technical keywords and phrases from text"""
-        doc = self.nlp(text)
-        keywords = set()
-        
-        # Extract noun phrases as compound terms
-        for chunk in doc.noun_chunks:
-            if any(token.pos_ in ['NOUN', 'PROPN'] for token in chunk):
-                # Add both the full noun phrase and individual nouns
-                keywords.add(chunk.text.lower())
-                # Also add individual words for flexibility
-                for token in chunk:
-                    if token.pos_ in ['NOUN', 'PROPN']:
-                        keywords.add(token.text.lower())
-        
-        # Add named entities
-        for ent in doc.ents:
-            keywords.add(ent.text.lower())
-            # Also add individual words from multi-word entities
-            if len(ent.text.split()) > 1:
-                keywords.update(word.lower() for word in ent.text.split())
-        
-        # Filter out short keywords and sort
-        return sorted([k for k in keywords if len(k) > 2])
+    def extract_keywords(self, text: str, min_freq: int = 2, min_relevance: float = 0.3) -> List[Dict[str, float]]:
+        """Extract keywords from text using the keyword extractor"""
+        return self.keyword_extractor.extract_keywords(text, min_freq, min_relevance)
 
     def detect_technical_terms(self, text: str) -> List[str]:
-        """Detect domain-specific technical terms"""
-        doc = self.nlp(text)
-        technical_terms = set()
-        
-        # Custom patterns for technical terms
-        patterns = [
-            r'\b[A-Z]+[a-z]*[A-Z][a-z]*\b',  # CamelCase
-            r'\b[a-z]+_[a-z]+\b',            # snake_case
-            r'\b[A-Z][A-Z0-9_]+\b',          # CONSTANT_CASE
-            r'\b\d+\.\d+\.\d+\b',            # Versions
-            r'\b[a-zA-Z]+://[^\s]*\b',       # URLs
-            r'\b[A-Za-z]+\([^)]*\)\b'        # Function calls
-        ]
-        
-        # Find pattern matches
-        for pattern in patterns:
-            technical_terms.update(re.findall(pattern, text))
-        
-        # Add named entities that look like technical terms
-        for ent in doc.ents:
-            if ent.label_ in ['ORG', 'PRODUCT', 'GPE']:
-                technical_terms.add(ent.text)
-        
-        # Add tokens that look like technical terms
-        for token in doc:
-            if token.text.isupper() and len(token.text) >= 2:
-                technical_terms.add(token.text)
-        
-        return sorted(list(technical_terms))
+        """Detect technical terms in text using the technical analyzer"""
+        return self.technical_analyzer.detect_technical_terms(text)
 
-    def classify_domain(self, text: str) -> str:
-        """Classify text into technical domains"""
-        # Count domain-specific keywords
-        text = text.lower()
-        domain_scores = {}
+    def analyze_content(self, title: str, description: str, content: str) -> Dict[str, Any]:
+        """Analyze content with context from title and description"""
+        # Clean inputs
+        title = self.text_cleaner.clean_text(title)
+        description = self.text_cleaner.clean_text(description)
+        content = self.text_cleaner.clean_text(content)
         
-        for domain, keywords in self.domain_keywords.items():
-            score = sum(1 for keyword in keywords if keyword.lower() in text)
-            domain_scores[domain] = score
+        # Extract context keywords from title and description
+        context_keywords = self._extract_context_keywords(title, description)
         
-        # Use zero-shot classification as backup
-        if max(domain_scores.values(), default=0) == 0:
-            result = self.classifier(
-                text,
-                candidate_labels=list(self.domain_keywords.keys()),
-                multi_label=False
-            )
-            return result['labels'][0]
+        # Perform technical analysis
+        technical_analysis = self.technical_analyzer.analyze_technical_content(content)
         
-        # Return domain with highest keyword match
-        return max(domain_scores.items(), key=lambda x: x[1])[0]
+        # Extract keywords with context influence
+        keywords = self._extract_keywords_with_context(content, context_keywords)
+        
+        # Classify content domain
+        domain_classification = self.technical_analyzer.classify_domain(content)
+        
+        # Generate comprehensive analysis
+        return {
+            'metadata': {
+                'title': title,
+                'description': description,
+                'word_count': len(content.split())
+            },
+            'context': {
+                'keywords': context_keywords,
+                'primary_topic': self._determine_primary_topic(context_keywords)
+            },
+            'content_analysis': {
+                'keywords': keywords,
+                'technical_terms': technical_analysis['technical_terms'],
+                'domain_classification': domain_classification,
+                'statistics': technical_analysis['statistics']
+            },
+            'key_phrases': self.keyword_extractor.extract_key_phrases(content),
+            'technical_elements': self.technical_analyzer.extract_code_elements(content)
+        }
 
-    def get_text_statistics(self, text: str) -> dict:
-        """Get statistical information about the text"""
-        doc = self.nlp(text)
+    def _extract_context_keywords(self, title: str, description: str) -> List[Dict[str, float]]:
+        """Extract keywords from title and description with higher relevance threshold"""
+        # Combine title and description with title having more weight
+        context_text = f"{title} {title} {description}"
+        return self.keyword_extractor.extract_keywords(
+            context_text,
+            min_freq=1,  # Lower frequency requirement for context
+            min_relevance=0.4  # Higher relevance threshold for context
+        )
+
+    def _extract_keywords_with_context(self, content: str, context_keywords: List[Dict[str, float]]) -> List[Dict[str, float]]:
+        """Extract keywords from content, influenced by context keywords"""
+        # Extract initial keywords
+        keywords = self.keyword_extractor.extract_keywords(content)
+        
+        # Boost relevance of keywords that appear in context
+        context_terms = {kw['keyword'].lower() for kw in context_keywords}
+        for keyword in keywords:
+            if keyword['keyword'].lower() in context_terms:
+                keyword['relevance'] = min(1.0, keyword['relevance'] * 1.5)
+        
+        # Sort by updated relevance
+        return sorted(keywords, key=lambda x: x['relevance'], reverse=True)
+
+    def _determine_primary_topic(self, context_keywords: List[Dict[str, float]]) -> str:
+        """Determine primary topic from context keywords"""
+        if not context_keywords:
+            return "unknown"
+        return context_keywords[0]['keyword']
+
+    def analyze_transcript(self, transcript: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze transcript segments"""
+        analyzed_segments = []
+        
+        for segment in transcript:
+            text = segment.get('text', '')
+            if not text:
+                continue
+            
+            # Clean text
+            text = self.text_cleaner.clean_text(text)
+            
+            # Analyze segment
+            analysis = {
+                'start_time': segment.get('start', 0),
+                'end_time': segment.get('start', 0) + segment.get('duration', 0),
+                'text': text,
+                'keywords': self.keyword_extractor.extract_keywords(text, min_freq=1),
+                'technical_terms': self.technical_analyzer.detect_technical_terms(text),
+                'domain': self.technical_analyzer.classify_domain(text)
+            }
+            
+            analyzed_segments.append(analysis)
         
         return {
-            'word_count': len([token for token in doc if not token.is_punct]),
-            'sentence_count': len(list(doc.sents)),
-            'technical_term_count': len(self.detect_technical_terms(text)),
-            'keyword_count': len(self.extract_keywords(text)),
-            'named_entity_count': len(doc.ents)
+            'segments': analyzed_segments,
+            'statistics': self._calculate_transcript_statistics(analyzed_segments)
+        }
+
+    def _calculate_transcript_statistics(self, segments: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Calculate statistics across transcript segments"""
+        if not segments:
+            return {}
+        
+        total_keywords = sum(len(seg['keywords']) for seg in segments)
+        total_terms = sum(len(seg['technical_terms']) for seg in segments)
+        
+        # Aggregate domain scores
+        domain_scores = {}
+        for segment in segments:
+            for domain, score in segment['domain'].items():
+                domain_scores[domain] = domain_scores.get(domain, 0) + score
+        
+        # Normalize domain scores
+        total_segments = len(segments)
+        domain_scores = {k: v/total_segments for k, v in domain_scores.items()}
+        
+        return {
+            'total_segments': total_segments,
+            'avg_keywords_per_segment': total_keywords / total_segments,
+            'avg_technical_terms_per_segment': total_terms / total_segments,
+            'domain_distribution': domain_scores,
+            'primary_domain': max(domain_scores.items(), key=lambda x: x[1])[0]
         }
 
     def get_safe_filename(self, text: str, max_length: int = 200) -> str:
         """Generate a safe filename from text"""
-        # Remove invalid filename characters
-        safe = re.sub(r'[<>:"/\\|?*]', '', text)
-        # Replace spaces with underscores
-        safe = safe.replace(' ', '_')
-        # Truncate if too long
-        return safe[:max_length]
+        return self.text_cleaner.clean_filename(text, max_length)

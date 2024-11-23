@@ -4,20 +4,7 @@ from typing import Dict, List, Optional, Any, Tuple
 import yt_dlp
 from youtube_transcript_api import YouTubeTranscriptApi
 from datetime import datetime
-from video_metadata import VideoMetadata, Chapter
-
-def clean_youtube_url(url: str) -> str:
-    """Clean YouTube URL by removing tracking parameters"""
-    # Extract video ID from different URL formats
-    if 'youtu.be/' in url:
-        video_id = url.split('youtu.be/')[-1].split('?')[0]
-    elif 'watch?v=' in url:
-        video_id = url.split('watch?v=')[-1].split('&')[0]
-    else:
-        raise ValueError(f"Invalid YouTube URL format: {url}")
-    
-    # Return clean URL
-    return f"https://www.youtube.com/watch?v={video_id}"
+from video_metadata import VideoMetadata, Chapter, clean_youtube_url
 
 class VideoDownloader:
     def __init__(self):
@@ -35,10 +22,6 @@ class VideoDownloader:
         # Create cache directory
         self.cache_dir = os.path.join(os.getcwd(), '.cache', 'videos')
         os.makedirs(self.cache_dir, exist_ok=True)
-
-    def clean_youtube_url(self, url: str) -> str:
-        """Clean YouTube URL by removing tracking parameters"""
-        return clean_youtube_url(url)
 
     def _get_cached_video_path(self, video_id: str) -> Optional[str]:
         """Get path to cached video if it exists"""
@@ -87,7 +70,7 @@ class VideoDownloader:
         """Extract comprehensive metadata from video"""
         try:
             # Clean URL
-            clean_url = self.clean_youtube_url(video_url)
+            clean_url = clean_youtube_url(video_url)
             
             # Configure options for metadata extraction
             meta_opts = {
@@ -168,7 +151,7 @@ class VideoDownloader:
         """Download video with progress tracking and caching"""
         try:
             # Clean URL and get video ID
-            clean_url = self.clean_youtube_url(url)
+            clean_url = clean_youtube_url(url)
             video_id = clean_url.split('watch?v=')[-1]
             
             # Check cache first

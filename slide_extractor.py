@@ -4,7 +4,7 @@ import re
 from video_metadata import VideoMetadata, Chapter
 from image_processor import ImageProcessor
 from text_processor import TextProcessor
-from content_segment import ContentSegment, align_transcript_with_slides
+from content_segment import ContentSegment, align_transcript_with_slides, _extract_transcript_values
 
 class SlideExtractor:
     def __init__(self):
@@ -192,6 +192,14 @@ class SlideExtractor:
                 'diagrams': []
             }
 
+    def _extract_keyword_text(self, keywords: List[Dict[str, Any]]) -> List[str]:
+        """Extract just the keyword text from keyword dictionaries"""
+        if not keywords:
+            return []
+        if isinstance(keywords[0], dict):
+            return [kw['keyword'] for kw in keywords]
+        return list(keywords)
+
     def process_transcript_with_slides(
         self,
         transcript: List[Dict[str, Any]],
@@ -201,8 +209,18 @@ class SlideExtractor:
     ) -> List[ContentSegment]:
         """Process transcript with slide timing information"""
         try:
+            # Normalize transcript entries
+            normalized_transcript = []
+            for entry in transcript:
+                values = _extract_transcript_values(entry)
+                if values is not None:
+                    normalized_transcript.append(values)
+            
+            # Convert slide timestamps to floats
+            normalized_timestamps = [float(ts) for ts in slide_timestamps]
+            
             # Align transcript with slides
-            segments = align_transcript_with_slides(transcript, slide_timestamps)
+            segments = align_transcript_with_slides(normalized_transcript, normalized_timestamps)
             
             # Enhance segments with slide analysis
             for segment in segments:
@@ -210,14 +228,15 @@ class SlideExtractor:
                     analysis = slide_analyses[segment.slide_index]
                     
                     # Keep slide's extracted text and content type
-                    segment.extracted_text = analysis.get('extracted_text', '')
-                    segment.content_type = analysis.get('content_type', 'unknown')
-                    segment.confidence = analysis.get('confidence', 0.0)
+                    segment.extracted_text = str(analysis.get('extracted_text', ''))
+                    segment.content_type = str(analysis.get('content_type', 'unknown'))
+                    segment.confidence = float(analysis.get('confidence', 0.0))
                     
-                    # Generate unique keywords for this segment by analyzing both
-                    # the slide content and the transcript text
-                    slide_keywords = set(analysis.get('keywords', []))
-                    transcript_keywords = set(self.text_processor.extract_keywords(segment.transcript_text))
+                    # Extract keyword text from dictionaries
+                    slide_keywords = set(self._extract_keyword_text(analysis.get('keywords', [])))
+                    transcript_keywords = set(self._extract_keyword_text(
+                        self.text_processor.extract_keywords(segment.transcript_text)
+                    ))
                     
                     # Combine keywords, prioritizing those that appear in both
                     common_keywords = slide_keywords.intersection(transcript_keywords)
@@ -227,10 +246,10 @@ class SlideExtractor:
                     segment.keywords = list(common_keywords) + list(unique_keywords - common_keywords)
                     
                     # Only include technical terms that appear in the transcript
-                    slide_terms = set(analysis.get('technical_terms', []))
+                    slide_terms = set(str(term) for term in analysis.get('technical_terms', []))
                     segment.technical_terms = [
                         term for term in slide_terms 
-                        if term.lower() in segment.transcript_text.lower()
+                        if str(term).lower() in segment.transcript_text.lower()
                     ]
                 else:
                     # If no matching slide, use empty values

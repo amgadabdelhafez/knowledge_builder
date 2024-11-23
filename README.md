@@ -2,6 +2,138 @@
 
 A tool for extracting and processing slides from educational videos.
 
+## Text Processing System
+
+The text processing system has been modularized into focused components:
+
+### Components
+
+1. **Knowledge Base** (knowledge_base.py)
+
+   - Manages technical terms, phrases, organizations, and locations
+   - Learns and updates from processed content
+   - Persists learned terms in knowledge_base.json
+   - Categories:
+     - Technical indicators (single terms)
+     - Technical phrases (compound terms)
+     - Organizations
+     - Locations
+     - Common words (for filtering)
+
+2. **Text Cleaner** (text_cleaner.py)
+
+   - Text preprocessing and normalization
+   - Specialized cleaning for:
+     - Technical terms
+     - Code blocks
+     - HTML content
+     - Markdown formatting
+   - Filename sanitization
+   - Whitespace normalization
+
+3. **Keyword Extractor** (keyword_extractor.py)
+
+   - Context-aware keyword extraction
+   - Relevance scoring
+   - Key phrase extraction
+   - Frequency analysis
+   - Context window extraction
+   - Keyword statistics
+
+4. **Technical Analyzer** (technical_analyzer.py)
+
+   - Technical term detection
+   - Domain classification
+   - Code element extraction
+   - Complexity analysis
+   - Pattern matching for:
+     - File extensions
+     - Acronyms
+     - Version numbers
+     - CamelCase identifiers
+
+5. **Text Processor** (text_processor.py)
+   - Main orchestrator
+   - Context-aware analysis using title and description
+   - Transcript segment analysis
+   - Comprehensive content statistics
+
+### Usage
+
+```python
+from text_processor import TextProcessor
+
+# Initialize processor
+processor = TextProcessor()
+
+# Analyze content with context
+analysis = processor.analyze_content(
+    title="Video Title",
+    description="Video Description",
+    content="Main Content"
+)
+
+# Analyze transcript
+transcript_analysis = processor.analyze_transcript(transcript_segments)
+```
+
+### Analysis Output
+
+The content analysis provides:
+
+```python
+{
+    'metadata': {
+        'title': str,
+        'description': str,
+        'word_count': int
+    },
+    'context': {
+        'keywords': [
+            {
+                'keyword': str,
+                'relevance': float,
+                'frequency': int
+            }
+        ],
+        'primary_topic': str
+    },
+    'content_analysis': {
+        'keywords': [...],
+        'technical_terms': [
+            {
+                'term': str,
+                'type': str,
+                'context': str
+            }
+        ],
+        'domain_classification': {
+            'domain': float  # confidence score
+        },
+        'statistics': {
+            'total_terms': int,
+            'unique_terms': int,
+            'technical_density': float,
+            'primary_domain': str
+        }
+    },
+    'key_phrases': [
+        {
+            'text': str,
+            'technical_terms': [str],
+            'relevance': float
+        }
+    ],
+    'technical_elements': {
+        'functions': [str],
+        'variables': [str],
+        'classes': [str],
+        'imports': [str],
+        'urls': [str]
+    }
+}
+```
+
 ## Session Resume
 
 To continue development from the current point, use this prompt:
@@ -20,10 +152,6 @@ Current status:
 - Chapter-based naming implemented in slide_extractor.py
 - Text similarity comparison added
 - Need to improve text preprocessing and duplicate detection
-
-Key files to focus on:
-1. image_processor.py - OCR and text processing
-2. slide_extractor.py - Chapter handling and slide organization
 ```
 
 ## Current Features
@@ -62,11 +190,11 @@ Key files to focus on:
 
 2. Text Processing
 
-   - Extracted text is processed to identify:
-     - Main content
-     - Keywords
-     - Technical terms
-     - Diagrams and their components
+   - Context-aware keyword extraction
+   - Technical term detection
+   - Domain classification
+   - Code element extraction
+   - Comprehensive statistics
 
 3. Segment Generation
 
@@ -134,53 +262,47 @@ processed_lecture_VIDEO_ID/
     └── transcript.json
 ```
 
-#### Content Analysis Format
+### Content Analysis Format
 
 ```json
 {
-  "start_time": 10.5,
-  "end_time": 15.2,
-  "duration": "0:00:04.700000",
-  "slide_index": 2,
-  "transcript_text": "Let's look at how this works in practice",
-  "extracted_text": "Implementation Example",
-  "keywords": ["implementation", "example", "practice", "works"],
-  "technical_terms": ["implementation"],
-  "content_type": "text",
-  "confidence": 0.95
+  "metadata": {
+    "title": "Video Title",
+    "description": "Video Description",
+    "word_count": 1000
+  },
+  "context": {
+    "keywords": [
+      {
+        "keyword": "machine learning",
+        "relevance": 0.85,
+        "frequency": 5
+      }
+    ],
+    "primary_topic": "machine learning"
+  },
+  "content_analysis": {
+    "keywords": [...],
+    "technical_terms": [
+      {
+        "term": "neural network",
+        "type": "known_term",
+        "context": "...using a neural network for classification..."
+      }
+    ],
+    "domain_classification": {
+      "machine_learning": 0.8,
+      "data_analytics": 0.4
+    },
+    "statistics": {
+      "total_terms": 50,
+      "unique_terms": 30,
+      "technical_density": 0.15,
+      "primary_domain": "machine_learning"
+    }
+  }
 }
 ```
-
-## Current Development Status
-
-### Recently Added
-
-- Chapter-based slide naming
-- OCR-based slide filtering
-- Text similarity detection
-- Slide deduplication
-- Video and result caching
-- Smart content segmentation
-- Unique keyword generation per segment
-- Processed folder prefixing
-
-### In Progress
-
-- [ ] Improve OCR accuracy
-- [ ] Better text similarity comparison
-- [ ] Smarter duplicate detection
-- [ ] Enhanced chapter detection
-
-### Key Files
-
-- `main.py` - Main entry point and CLI
-- `lecture_processor.py` - Core video processing
-- `image_processor.py` - Slide extraction and OCR
-- `slide_extractor.py` - Chapter-based extraction and content analysis
-- `video_downloader.py` - Video downloading and caching
-- `content_segment.py` - Content segmentation and analysis
-- `similarity_analyzer.py` - Text and visual similarity analysis
-- `text_processor.py` - Text analysis and keyword extraction
 
 ## Development Notes
 
@@ -219,7 +341,7 @@ python main.py --video "URL" --duration 300 --samples 1.0
 
 ## Next Steps
 
-1. Implement better OCR preprocessing
+1. Improve OCR preprocessing
 2. Add text-based slide grouping
 3. Improve chapter name cleaning
 4. Add slide content validation

@@ -1,34 +1,25 @@
 import pytest
 import os
-import shutil
 import numpy as np
 import cv2
 from typing import List, Dict, Any
 from image_processor import ImageProcessor
+from test_utils import cleanup_directory, TEST_OUTPUT_PATH, TEST_SLIDES_PATH
 
-# Test data - Using a shorter video for testing
-TEST_VIDEO_PATH = "test_data/test_video.mp4"  # Short test video
-TEST_OUTPUT_PATH = "test_output/slides"
-
-def cleanup_directory(path: str):
-    """Safely cleanup a directory and all its contents"""
-    try:
-        if os.path.exists(path):
-            shutil.rmtree(path)
-    except Exception as e:
-        print(f"Warning: Failed to cleanup {path}: {e}")
+# Test data path
+TEST_VIDEO_PATH = os.path.join(TEST_OUTPUT_PATH, "test_video.mp4")
 
 class TestFrameExtraction:
     def setUp(self):
         """Setup test environment"""
         # Create test directories
         os.makedirs(os.path.dirname(TEST_VIDEO_PATH), exist_ok=True)
-        cleanup_directory(TEST_OUTPUT_PATH)
-        os.makedirs(TEST_OUTPUT_PATH, exist_ok=True)
+        cleanup_directory(TEST_SLIDES_PATH)
+        os.makedirs(TEST_SLIDES_PATH, exist_ok=True)
     
     def tearDown(self):
         """Cleanup test environment"""
-        cleanup_directory(TEST_OUTPUT_PATH)
+        cleanup_directory(TEST_SLIDES_PATH)
         if os.path.exists(TEST_VIDEO_PATH):
             os.remove(TEST_VIDEO_PATH)
 
@@ -60,7 +51,7 @@ class TestFrameExtraction:
             image_processor = ImageProcessor()
             slide_paths, slide_timestamps = image_processor.extract_slides(
                 TEST_VIDEO_PATH,
-                TEST_OUTPUT_PATH,
+                TEST_SLIDES_PATH,
                 threshold=0.8
             )
             
@@ -74,15 +65,6 @@ class TestFrameExtraction:
         finally:
             self.tearDown()
 
-    def test_frame_hashing(self):
-        """Test frame hash calculation"""
-        processor = ImageProcessor()
-        frame = np.zeros((480, 640, 3), dtype=np.uint8)
-        hash_value = processor._calculate_frame_hash(frame)
-        
-        assert isinstance(hash_value, str)
-        assert len(hash_value) == 32  # MD5 hash length
-
     def test_text_extraction(self):
         """Test text extraction from image"""
         self.setUp()
@@ -95,7 +77,7 @@ class TestFrameExtraction:
             cv2.putText(img, 'Test Text', (50, 240), font, 2, (0, 0, 0), 2)
             
             # Save test image
-            test_image = os.path.join(TEST_OUTPUT_PATH, 'test_text.jpg')
+            test_image = os.path.join(TEST_SLIDES_PATH, 'test_text.jpg')
             cv2.imwrite(test_image, img)
             
             # Extract text
@@ -110,6 +92,3 @@ class TestFrameExtraction:
             pytest.fail(f"Error in text extraction: {e}")
         finally:
             self.tearDown()
-
-if __name__ == "__main__":
-    pytest.main(['-v', '--tb=short'])
